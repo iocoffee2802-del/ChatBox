@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Chatbot theo tài liệu</title>
 <style>
-.sources{margin-top:8px;padding-top:7px;border-top:1px solid var(--bd);font-size:.8rem;color:var(--mut)}.sources strong{color:var(--tx)}.source-chip{display:inline-block;margin:4px 5px 0 0;padding:2px 8px;border:1px solid var(--bd);border-radius:999px}.quick{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 12px}.quick button{font-size:.82rem;padding:7px 10px}.chathead{display:flex;justify-content:space-between;align-items:center;gap:8px}.chatnote{font-size:.82rem;color:var(--mut);margin:0 0 10px}
+.sources{margin-top:8px;padding-top:7px;border-top:1px solid var(--bd);font-size:.8rem;color:var(--mut)}.sources strong{color:var(--tx)}.source-chip{display:inline-block;margin:4px 5px 0 0;padding:2px 8px;border:1px solid var(--bd);border-radius:999px}.quick{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 12px}.quick button{font-size:.82rem;padding:7px 10px}.chathead{display:flex;justify-content:space-between;align-items:center;gap:8px}.chatnote{font-size:.82rem;color:var(--mut);margin:0 0 10px}.statsgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}.statbox{border:1px solid var(--bd);border-radius:10px;padding:10px;background:var(--bg)}.statnum{font-size:1.35rem;font-weight:700}.statlabel{font-size:.78rem;color:var(--mut)}.adminlist{display:grid;gap:8px}.adminDoc{border:1px solid var(--bd);border-radius:10px;padding:10px}.adminDocTop{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.adminDocActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.adminDocActions button{font-size:.82rem;padding:6px 9px}.filters{display:grid;grid-template-columns:1fr 1fr;gap:8px}.filters input,.filters select{min-width:0}.mini{font-size:.82rem;color:var(--mut)}.analyticsList{margin:6px 0;padding-left:20px;font-size:.88rem}.analyticsList li{margin:4px 0}@media(max-width:520px){.statsgrid{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr}}
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f7f6f2;--card:#fff;--tx:#1f2328;--mut:#6b7280;--ac:#c2410c;--bd:#e5e2da;--me:#fde8d8}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171717;--card:#222;--tx:#ececec;--mut:#9ca3af;--ac:#fb923c;--bd:#333;--me:#3a2a20}}
 :root[data-theme="dark"]{--bg:#171717;--card:#222;--tx:#ececec;--mut:#9ca3af;--ac:#fb923c;--bd:#333;--me:#3a2a20}
@@ -50,13 +50,14 @@ button.sec{background:var(--bg);color:var(--tx);border:1px solid var(--bd);font-
   <div class="row" style="justify-content:space-between;align-items:center">
     <h2>Quản trị kho tài liệu</h2><button class="sec" id="logoutBtn">Đăng xuất</button>
   </div>
+  <div class="card" style="margin-top:14px"><h3 style="font-size:.95rem;margin:0 0 4px">Tổng quan hoạt động</h3><div id="statsPanel"><p class="hint">Đang tải thống kê...</p></div><button class="sec" id="refreshStats" type="button">Làm mới thống kê</button></div>
   <h3 style="font-size:.95rem;margin:12px 0 4px">Nạp tài liệu</h3>
+  <input type="text" id="docCategory" placeholder="Danh mục (ví dụ: Cà phê, Hướng dẫn, FAQ)"><input type="text" id="docTags" placeholder="Thẻ, cách nhau bằng dấu phẩy (ví dụ: rang, cupping)">
   <input type="file" id="f" accept=".pdf,.txt,.md,.csv" multiple>
   <textarea id="paste" placeholder="Hoặc dán văn bản vào đây (quy trình, FAQ, giáo trình...)"></textarea>
   <div class="row"><input type="text" id="pn" placeholder="Tên cho đoạn văn bản dán"><button id="addText">Thêm văn bản</button></div>
   <p class="hint" id="adminStatus"></p>
-  <h3 style="font-size:.95rem;margin:16px 0 4px">Tài liệu đang dùng chung</h3>
-  <div id="docs"></div>
+  <h3 style="font-size:.95rem;margin:16px 0 4px">Quản lý kho tài liệu</h3><div class="filters"><input type="text" id="docSearch" placeholder="Tìm theo tên hoặc thẻ..."><select id="docFilter"><option value="">Tất cả danh mục</option></select></div><p class="mini" id="docCount"></p><div id="docs" class="adminlist"></div>
 </section>
 <div class="card"><div class="chathead"><h2>Trò chuyện</h2><button class="sec" id="clearChat" type="button">Xóa hội thoại</button></div><p class="chatnote">Câu trả lời được tạo từ tài liệu trong kho dùng chung. Nguồn tham khảo sẽ hiển thị bên dưới câu trả lời.</p><div class="quick"><button class="sec" type="button" data-prompt="Tóm tắt những nội dung chính trong tài liệu.">Tóm tắt tài liệu</button><button class="sec" type="button" data-prompt="Những thông tin quan trọng nhất tôi cần biết là gì?">Thông tin quan trọng</button><button class="sec" type="button" data-prompt="Liệt kê các bước hoặc quy trình được nêu trong tài liệu.">Các bước / quy trình</button></div><div id="log"></div>
 <div class="row"><input type="text" id="q" placeholder="Nhập câu hỏi của bạn..." autocomplete="off"><button id="send">Gửi</button></div>
@@ -71,14 +72,48 @@ async function api(url,options){var r=await fetch(url,Object.assign({credentials
 function addMsg(cls,t,sources){var d=document.createElement("div");d.className="m "+cls;var body=document.createElement("div");body.textContent=t;d.appendChild(body);if(cls==="b"&&Array.isArray(sources)&&sources.length){var box=document.createElement("div");box.className="sources";var label=document.createElement("strong");label.textContent="Nguồn tham khảo: ";box.appendChild(label);sources.forEach(function(s){var chip=document.createElement("span");chip.className="source-chip";chip.textContent=s.name;box.appendChild(chip)});d.appendChild(box)}$("log").appendChild(d);$("log").scrollTop=1e9;return d}
 function renderHistory(){$("log").innerHTML="";hist.forEach(function(m){addMsg(m.r==="Trợ lý"?"b":"u",m.t,m.sources||[])})}
 function showAdmin(value){isAdmin=value;$("adminLogin").classList.toggle("hidden",value);$("adminPanel").classList.toggle("hidden",!value)}
-async function refreshDocs(){try{var d=await api("/api/docs");$("kbStatus").textContent=d.documents.length+" tài liệu trong kho dùng chung.";var h="";d.documents.forEach(function(x){h+='<div class="doc"><span>📄 '+escapeHtml(x.name)+' <span class="docmeta">('+Math.round(x.chars/1000)+'k ký tự)</span></span>'+(isAdmin?'<button class="sec" data-id="'+x.id+'">Xóa</button>':'')+'</div>'});$("docs").innerHTML=h;
-if(isAdmin){document.querySelectorAll("#docs button").forEach(function(b){b.onclick=async function(){if(!confirm("Xóa tài liệu này khỏi kho dùng chung?"))return;try{await api("/api/admin/docs/"+encodeURIComponent(b.dataset.id),{method:"DELETE"});await refreshDocs();$("adminStatus").textContent="Đã xóa tài liệu."}catch(e){$("adminStatus").textContent=e.message}}})}
-}catch(e){$("kbStatus").textContent="Không tải được kho tài liệu: "+e.message}}
+async function refreshDocs(){
+try{
+ var d=await api(isAdmin?"/api/admin/docs":"/api/docs");
+ var list=d.documents||[];
+ $("kbStatus").textContent=list.length+" tài liệu trong kho dùng chung.";
+ if(!isAdmin){$("docs").innerHTML="";return}
+ var categories=[...new Set(list.map(x=>x.category||"Chưa phân loại"))].sort();
+ var filter=$("docFilter"),old=filter.value;
+ filter.innerHTML='<option value="">Tất cả danh mục</option>'+categories.map(c=>'<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join("");
+ if(categories.includes(old))filter.value=old;
+ function draw(){
+  var q=$("docSearch").value.trim().toLocaleLowerCase("vi"),cat=filter.value;
+  var shown=list.filter(x=>(!cat||(x.category||"Chưa phân loại")===cat)&&(!q||[x.name,x.category,(x.tags||[]).join(" ")].join(" ").toLocaleLowerCase("vi").includes(q)));
+  $("docCount").textContent="Hiển thị "+shown.length+" / "+list.length+" tài liệu";
+  $("docs").innerHTML=shown.map(x=>'<div class="adminDoc"><div class="adminDocTop"><div><strong>'+escapeHtml(x.name)+'</strong><div class="mini">'+escapeHtml(x.category||"Chưa phân loại")+' · '+Math.round(x.chars/1000)+'k ký tự</div><div class="mini">'+escapeHtml((x.tags||[]).join(", "))+'</div></div></div><div class="adminDocActions"><button class="sec" data-edit="'+x.id+'">Sửa thông tin</button><button class="sec" data-delete="'+x.id+'">Xóa</button></div></div>').join("")||'<p class="hint">Không tìm thấy tài liệu phù hợp.</p>';
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=async function(){
+   var x=list.find(z=>z.id===b.dataset.edit);if(!x)return;
+   var name=prompt("Tên tài liệu:",x.name);if(name===null)return;
+   var category=prompt("Danh mục:",x.category||"Chưa phân loại");if(category===null)return;
+   var tags=prompt("Thẻ, cách nhau bằng dấu phẩy:",(x.tags||[]).join(", "));if(tags===null)return;
+   try{await api("/api/admin/docs/"+encodeURIComponent(x.id),{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name,category:category,tags:tags.split(",").map(t=>t.trim()).filter(Boolean)})});$("adminStatus").textContent="Đã cập nhật thông tin tài liệu.";await refreshDocs()}catch(e){$("adminStatus").textContent=e.message}
+  });
+  document.querySelectorAll("[data-delete]").forEach(b=>b.onclick=async function(){
+   var x=list.find(z=>z.id===b.dataset.delete);if(!x||!confirm("Xóa tài liệu "+x.name+" khỏi kho dùng chung?"))return;
+   try{await api("/api/admin/docs/"+encodeURIComponent(x.id),{method:"DELETE"});$("adminStatus").textContent="Đã xóa tài liệu.";await refreshDocs();await refreshStats()}catch(e){$("adminStatus").textContent=e.message}
+  });
+ }
+ $("docSearch").oninput=draw;filter.onchange=draw;draw();
+}catch(e){$("kbStatus").textContent="Không tải được kho tài liệu: "+e.message}
+}
+async function refreshStats(){
+ try{
+  var s=await api("/api/admin/stats");
+  $("statsPanel").innerHTML='<div class="statsgrid"><div class="statbox"><div class="statnum">'+s.totalQuestions+'</div><div class="statlabel">Tổng lượt hỏi</div></div><div class="statbox"><div class="statnum">'+s.documentCount+'</div><div class="statlabel">Tài liệu</div></div><div class="statbox"><div class="statnum">'+Math.round(s.totalCharacters/1000)+'k</div><div class="statlabel">Ký tự dữ liệu</div></div></div><strong>14 ngày gần đây</strong><div class="mini">'+s.days.map(x=>x.date.slice(5)+": "+x.count).join(" · ")+'</div><strong style="display:block;margin-top:10px">Câu hỏi phổ biến</strong><ol class="analyticsList">'+(s.popularQuestions||[]).map(x=>'<li>'+escapeHtml(x.question)+' <strong>('+x.count+')</strong></li>').join("")+'</ol><strong style="display:block;margin-top:10px">Tài liệu được tham khảo nhiều</strong><ol class="analyticsList">'+(s.popularDocuments||[]).map(x=>'<li>'+escapeHtml(x.name)+' <strong>('+x.count+')</strong></li>').join("")+'</ol><strong style="display:block;margin-top:10px">Câu hỏi gần đây</strong><ul class="analyticsList">'+(s.recent||[]).slice(0,5).map(x=>'<li>'+escapeHtml(x.question)+' <span class="mini">'+new Date(x.at).toLocaleString()+'</span></li>').join("")+'</ul><p class="mini">Thống kê lưu trên máy chủ; câu hỏi được lưu tối đa 160 ký tự để tổng hợp xu hướng.</p>';
+ }catch(e){$("statsPanel").textContent=e.message}
+}
 function escapeHtml(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 async function checkStatus(){try{var d=await api("/api/health");$("apiStatus").textContent=d.configured?"OpenAI đã được cấu hình":"Máy chủ chưa cấu hình OPENAI_API_KEY";$("apiDot").className="dot "+(d.configured?"ok":"bad")}catch(e){$("apiStatus").textContent="Không kết nối được máy chủ";$("apiDot").className="dot bad"}}
-$("loginForm").onsubmit=async function(e){e.preventDefault();$("loginBtn").disabled=true;$("loginStatus").textContent="Đang đăng nhập...";try{await api("/api/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:$("adminPassword").value})});$("adminPassword").value="";$("loginStatus").textContent="";showAdmin(true);await refreshDocs()}catch(e){$("loginStatus").textContent=e.message}finally{$("loginBtn").disabled=false}};
+$("loginForm").onsubmit=async function(e){e.preventDefault();$("loginBtn").disabled=true;$("loginStatus").textContent="Đang đăng nhập...";try{await api("/api/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:$("adminPassword").value})});$("adminPassword").value="";$("loginStatus").textContent="";showAdmin(true);await refreshDocs();await refreshStats()}catch(e){$("loginStatus").textContent=e.message}finally{$("loginBtn").disabled=false}};
 $("logoutBtn").onclick=async function(){await api("/api/admin/logout",{method:"POST"});showAdmin(false);await refreshDocs()};
-async function addDocument(name,text){await api("/api/admin/docs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name,text:text})});await refreshDocs()}
+$("refreshStats").onclick=refreshStats;
+async function addDocument(name,text){await api("/api/admin/docs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name,text:text,category:$("docCategory").value,tags:$("docTags").value.split(",").map(t=>t.trim()).filter(Boolean)})});await refreshDocs();await refreshStats()}
 $("addText").onclick=async function(){var text=$("paste").value.trim(),name=$("pn").value.trim()||"Văn bản dán";if(text.length<20){$("adminStatus").textContent="Văn bản cần tối thiểu 20 ký tự.";return}try{$("adminStatus").textContent="Đang lưu...";await addDocument(name,text);$("paste").value="";$("pn").value="";$("adminStatus").textContent="Đã thêm tài liệu."}catch(e){$("adminStatus").textContent=e.message}};
 if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"}
 $("f").onchange=async function(){for(var file of $("f").files){try{$("adminStatus").textContent="Đang đọc "+file.name+"...";var text="";if(file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf")){if(!window.pdfjsLib)throw new Error("Không tải được PDF.js");var pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;for(var i=1;i<=pdf.numPages;i++){var page=await pdf.getPage(i),content=await page.getTextContent();text+=content.items.map(function(x){return x.str}).join(" ")+"\n"}}else{text=await file.text()}if(text.trim().length<20)throw new Error("Không trích xuất được nội dung chữ (PDF scan cần OCR).");await addDocument(file.name,text);$("adminStatus").textContent="Đã nạp "+file.name}catch(e){$("adminStatus").textContent=file.name+": "+e.message}}$("f").value=""};
