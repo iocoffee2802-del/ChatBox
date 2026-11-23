@@ -297,7 +297,7 @@ app.post("/api/chat", chatLimiter, async (req, res) => {
       .filter(item => item.type === "output_text")
       .map(item => item.text).join("\n").trim();
     const sources = [...new Map(selected.map(c => [c.name, { name: c.name, parts: selected.filter(x => x.name === c.name).map(x => x.part) }])).values()];
-    await recordQuestion(question.trim(), sources);
+    try { await recordQuestion(question.trim(), sources); } catch (analyticsError) { console.error("Analytics write error:", analyticsError?.message || analyticsError); }
     res.json({ answer: answer || "Không nhận được nội dung trả lời từ AI.", sources });
   } catch (error) {
     console.error("Chat API error:", error?.message || error);
