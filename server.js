@@ -15,6 +15,7 @@ const MODEL = process.env.OPENAI_MODEL || "gpt-5.5";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 const DB_FILE = path.join(DATA_DIR, "documents.json");
+const STATS_FILE = path.join(DATA_DIR, "analytics.json");
 const IS_PROD = process.env.NODE_ENV === "production";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -47,6 +48,52 @@ async function writeDocs(docs) {
   const tmp = DB_FILE + ".tmp";
   await fs.writeFile(tmp, JSON.stringify(docs, null, 2), { mode: 0o600 });
   await fs.rename(tmp, DB_FILE);
+}
+async function readStats() {
+  try {
+    return JSON.parse(await fs.readFile(STATS_FILE, "utf8"));
+  } catch (e) {
+    if (e.code === "ENOENT") return { totalQuestions: 0, daily: {}, questions: {}, documents: {}, recent: [] };
+    throw e;
+  }
+}
+async function writeStats(stats) {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  const tmp = STATS_FILE + ".tmp";
+  await fs.writeFile(tmp, JSON.stringify(stats, null, 2), { mode: 0o600 });
+  await fs.rename(tmp, STATS_FILE);
+}
+function cleanCategory(value) {
+  return typeof value === "string" ? value.trim().slice(0, 60) : "";
+}
+function cleanTags(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map(x => String(x).trim().slice(0, 30)).filter(Boolean))].slice(0, 10);
+}
+function questionKey(value) {
+  return String(value || "").toLocaleLowerCase("vi").normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim().slice(0, 160);
+}
+async function recordQuestion(question, sources) {
+  const stats = await readStats();
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
+  const key = questionKey(question);
+  stats.totalQuestions = (stats.totalQuestions || 0) + 1;
+  stats.daily ||= {};
+  stats.daily[day] = (stats.daily[day] || 0) + 1;
+  stats.questions ||= {};
+  if (key) stats.questions[key] = (stats.questions[key] || 0) + 1;
+  stats.documents ||= {};
+  for (const source of sources) stats.documents[source.name] = (stats.documents[source.name] || 0) + 1;
+  stats.recent ||= [];
+  stats.recent.unshift({ question: String(question).trim().slice(0, 160), at: now.toISOString(), sources: sources.map(x => x.name).slice(0, 5) });
+  stats.recent = stats.recent.slice(0, 20);
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - 45);
+  const minDay = cutoff.toISOString().slice(0, 10);
+  for (const dayKey of Object.keys(stats.daily)) if (dayKey < minDay) delete stats.daily[dayKey];
+  await writeStats(stats);
 }
 function safeEqual(a, b) {
   const aa = Buffer.from(String(a));
@@ -105,6 +152,26 @@ app.post("/api/admin/logout", (req, res) => {
   res.json({ success: true });
 });
 
+app.get("/api/admin/stats", requireAdmin, async (_req, res) => {
+  try {
+    const [stats, docs] = await Promise.all([readStats(), readDocs()]);
+    const days = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (13 - i));
+      const key = d.toISOString().slice(0, 10);
+      return { date: key, count: stats.daily?.[key] || 0 };
+    });
+    const popularQuestions = Object.entries(stats.questions || {}).map(([question, count]) => ({ question, count })).sort((a,b) => b.count-a.count).slice(0, 10);
+    const popularDocuments = Object.entries(stats.documents || {}).map(([name, count]) => ({ name, count })).sort((a,b) => b.count-a.count).slice(0, 10);
+    res.json({ totalQuestions: stats.totalQuestions || 0, documentCount: docs.length, totalCharacters: docs.reduce((n,d) => n + (d.text || "").length, 0), days, popularQuestions, popularDocuments, recent: (stats.recent || []).slice(0, 10) });
+  } catch { res.status(500).json({ error: "Không tải được thống kê." }); }
+});
+app.get("/api/admin/docs", requireAdmin, async (_req, res) => {
+  try {
+    const docs = await readDocs();
+    res.json({ documents: docs.map(d => ({ id:d.id, name:d.name, chars:(d.text||"").length, category:d.category || "Chưa phân loại", tags:d.tags || [], createdAt:d.createdAt, updatedAt:d.updatedAt || null })) });
+  } catch { res.status(500).json({ error: "Không tải được danh sách tài liệu." }); }
+});
+
 app.post("/api/admin/docs", requireAdmin, async (req, res) => {
   try {
     const name = typeof req.body?.name === "string" ? req.body.name.trim().slice(0, 180) : "";
@@ -113,13 +180,28 @@ app.post("/api/admin/docs", requireAdmin, async (req, res) => {
     if (text.length > 300000) return res.status(413).json({ error: "Tài liệu vượt quá 300.000 ký tự." });
     const docs = await readDocs();
     if (docs.length >= 100) return res.status(409).json({ error: "Kho đã đạt giới hạn 100 tài liệu." });
-    const doc = { id: crypto.randomUUID(), name, text, createdAt: new Date().toISOString() };
+    const doc = { id: crypto.randomUUID(), name, text, category: cleanCategory(req.body?.category) || "Chưa phân loại", tags: cleanTags(req.body?.tags), createdAt: new Date().toISOString() };
     docs.push(doc);
     await writeDocs(docs);
     res.status(201).json({ success: true, id: doc.id });
   } catch {
     res.status(500).json({ error: "Không lưu được tài liệu. Kiểm tra ổ lưu trữ của máy chủ." });
   }
+});
+app.put("/api/admin/docs/:id", requireAdmin, async (req, res) => {
+  try {
+    const docs = await readDocs();
+    const doc = docs.find(d => d.id === req.params.id);
+    if (!doc) return res.status(404).json({ error: "Không tìm thấy tài liệu." });
+    const name = typeof req.body?.name === "string" ? req.body.name.trim().slice(0, 180) : doc.name;
+    if (!name) return res.status(400).json({ error: "Tên tài liệu không được để trống." });
+    doc.name = name;
+    doc.category = cleanCategory(req.body?.category) || "Chưa phân loại";
+    doc.tags = cleanTags(req.body?.tags);
+    doc.updatedAt = new Date().toISOString();
+    await writeDocs(docs);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: "Không cập nhật được tài liệu." }); }
 });
 app.delete("/api/admin/docs/:id", requireAdmin, async (req, res) => {
   try {
@@ -215,6 +297,7 @@ app.post("/api/chat", chatLimiter, async (req, res) => {
       .filter(item => item.type === "output_text")
       .map(item => item.text).join("\n").trim();
     const sources = [...new Map(selected.map(c => [c.name, { name: c.name, parts: selected.filter(x => x.name === c.name).map(x => x.part) }])).values()];
+    await recordQuestion(question.trim(), sources);
     res.json({ answer: answer || "Không nhận được nội dung trả lời từ AI.", sources });
   } catch (error) {
     console.error("Chat API error:", error?.message || error);
