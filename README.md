@@ -1,33 +1,41 @@
-# Chatbot theo tài liệu – OpenAI + Admin-only Knowledge Base
+# ChatBox – Public document Q&A chatbot
 
-## Quyền truy cập
-- Khách truy cập: chỉ được hỏi đáp.
-- Admin: đăng nhập bằng `ADMIN_PASSWORD`, được nạp và xóa tài liệu.
-- Tài liệu được lưu tập trung trên máy chủ; mọi khách truy cập sử dụng chung kho kiến thức.
-- API Key OpenAI chỉ tồn tại trong biến môi trường của máy chủ.
+Public visitors can ask questions without creating an account. Only the administrator can upload or delete shared knowledge-base documents.
 
-## Chạy thử trên máy tính
-Yêu cầu Node.js 20 trở lên.
+## Features
+- Public question-and-answer interface; no visitor login required.
+- One central document library shared by all visitors.
+- Admin-only document upload, paste, listing, and deletion.
+- OpenAI Responses API called only from the server; API key is never sent to the browser.
+- Retrieval selects relevant overlapping text passages and returns source document names with answers.
+- Chat history is saved in the visitor's own browser using localStorage; it is not a server-side visitor account or cross-device history.
+- Suggested question prompts and a clear-history control.
+- Vietnamese and English response language follows the visitor's question.
+- Basic rate limiting for login and public chat.
 
-1. Cài thư viện: `npm install`
-2. Sao chép `.env.example` thành `.env`.
-3. Điền `OPENAI_API_KEY` và đặt mật khẩu mạnh cho `ADMIN_PASSWORD`.
-4. Chạy `npm start`.
-5. Mở `http://localhost:3000`.
+## Run locally
+Requires Node.js 20 or later.
 
-## Deploy GitHub + Render
-1. Tạo Web Service từ repository này.
-2. Build command: `npm install`; Start command: `npm start`.
-3. Thêm Environment Variables `OPENAI_API_KEY`, `OPENAI_MODEL`, `ADMIN_PASSWORD`, `NODE_ENV=production`, `DATA_DIR=/var/data`.
-4. Gắn Persistent Disk vào `/var/data`.
+1. Run `npm install`.
+2. Copy `.env.example` to `.env`.
+3. Set `OPENAI_API_KEY` and a strong `ADMIN_PASSWORD`.
+4. Run `npm start`.
+5. Open `http://localhost:3000`.
 
-## Lưu trữ
-Kho tài liệu ghi tại `DATA_DIR/documents.json`. Cần persistent disk để dữ liệu không mất khi deploy/restart.
+## Deploy on Render
+The repository includes `render.yaml` for a Node web service.
+- Build: `npm install`
+- Start: `npm start`
+- Persistent disk mount: `/var/data`
+- Set secret environment variables `OPENAI_API_KEY` and `ADMIN_PASSWORD` in Render.
+- Keep `DATA_DIR=/var/data` so the shared knowledge base survives redeploys.
 
-## Bảo mật và giới hạn
-- API Key chỉ lưu ở máy chủ; không đưa `.env` lên GitHub.
-- Cookie Admin HttpOnly, SameSite=Strict; Secure khi production.
-- Phiên Admin hết hạn sau 8 giờ; restart sẽ yêu cầu đăng nhập lại.
-- Giới hạn đăng nhập 10 lần/15 phút; hỏi đáp 20 lần/phút/IP.
-- Một mật khẩu Admin chung; tài liệu PDF scan không có text layer chưa được OCR.
-- Upload được trích xuất thành text ở trình duyệt; server không lưu PDF gốc.
+Render deploys new commits from the connected branch automatically when auto-deploy is enabled. Review the deploy event/logs after each sync.
+
+## Data and limitations
+- Documents are stored as extracted text in `DATA_DIR/documents.json`; original PDFs are not retained.
+- Text-layer PDFs, TXT, MD, and CSV are supported. Scanned PDFs require OCR before upload.
+- Chat history is local to each visitor's browser and can be cleared with the chat's clear-history button.
+- The current Admin uses one shared password. Admin sessions are held in memory and expire after 8 hours; a server restart requires Admin to log in again.
+- The public chat endpoint is rate-limited per IP. For high traffic, add a durable shared rate-limit store and consider a database-backed document library.
+- Do not commit `.env` or expose secrets in frontend code.
