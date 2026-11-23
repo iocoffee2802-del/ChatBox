@@ -21,7 +21,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({ contentSecurityPolicy: false, xFrameOptions: false }));
 app.use(express.json({ limit: "10mb" }));
 
 const sessions = new Map();
