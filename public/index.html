@@ -121,6 +121,6 @@ async function send(){var q=$("q").value.trim();if(!q)return;$("q").value="";add
 $("clearChat").onclick=function(){if(!confirm("Xóa lịch sử trò chuyện được lưu trên trình duyệt này?"))return;hist=[];saveHistory();$("log").innerHTML=""};
 document.querySelectorAll("[data-prompt]").forEach(function(b){b.onclick=function(){$("q").value=b.dataset.prompt;$("q").focus()}});
 $("send").onclick=send;$("q").addEventListener("keydown",function(e){if(e.key==="Enter")send()});
-(async function(){renderHistory();await Promise.all([checkStatus(),refreshDocs()]);try{var d=await api("/api/admin/me");if(d.authenticated){showAdmin(true);await refreshDocs()}}catch{}})();
+(async function(){renderHistory();await Promise.all([checkStatus(),refreshDocs()]);try{var d=await api("/api/admin/me");if(d.authenticated){showAdmin(true);await refreshDocs();await refreshStats()}}catch{}})();
 </script>
 </body></html>
