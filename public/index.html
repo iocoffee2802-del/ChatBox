@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Chatbot theo tài liệu</title>
 <style>
+.sources{margin-top:8px;padding-top:7px;border-top:1px solid var(--bd);font-size:.8rem;color:var(--mut)}.sources strong{color:var(--tx)}.source-chip{display:inline-block;margin:4px 5px 0 0;padding:2px 8px;border:1px solid var(--bd);border-radius:999px}.quick{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 12px}.quick button{font-size:.82rem;padding:7px 10px}.chathead{display:flex;justify-content:space-between;align-items:center;gap:8px}.chatnote{font-size:.82rem;color:var(--mut);margin:0 0 10px}
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f7f6f2;--card:#fff;--tx:#1f2328;--mut:#6b7280;--ac:#c2410c;--bd:#e5e2da;--me:#fde8d8}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171717;--card:#222;--tx:#ececec;--mut:#9ca3af;--ac:#fb923c;--bd:#333;--me:#3a2a20}}
 :root[data-theme="dark"]{--bg:#171717;--card:#222;--tx:#ececec;--mut:#9ca3af;--ac:#fb923c;--bd:#333;--me:#3a2a20}
@@ -29,8 +30,8 @@ button.sec{background:var(--bg);color:var(--tx);border:1px solid var(--bd);font-
 </style>
 </head>
 <body><main>
-<h1>Chatbot theo tài liệu của bạn</h1>
-<p class="s">Trợ lý hỏi đáp sử dụng kho tài liệu do quản trị viên quản lý.</p>
+<h1>ChatBox – Trợ lý hỏi đáp tài liệu</h1>
+<p class="s">Đặt câu hỏi tự nhiên và nhận câu trả lời dựa trên kho tài liệu được quản trị viên chia sẻ công khai.</p>
 <div class="card">
   <h2>Trạng thái hệ thống</h2>
   <div class="status"><span class="dot" id="apiDot"></span><span id="apiStatus">Đang kiểm tra kết nối...</span></div>
@@ -57,14 +58,13 @@ button.sec{background:var(--bg);color:var(--tx);border:1px solid var(--bd);font-
   <h3 style="font-size:.95rem;margin:16px 0 4px">Tài liệu đang dùng chung</h3>
   <div id="docs"></div>
 </section>
-<div class="card"><h2>Hỏi đáp</h2><div id="log"></div>
-<div class="row"><input type="text" id="q" placeholder="Hỏi về nội dung tài liệu..."><button id="send">Gửi</button></div>
+<div class="card"><div class="chathead"><h2>Trò chuyện</h2><button class="sec" id="clearChat" type="button">Xóa hội thoại</button></div><p class="chatnote">Câu trả lời được tạo từ tài liệu trong kho dùng chung. Nguồn tham khảo sẽ hiển thị bên dưới câu trả lời.</p><div class="quick"><button class="sec" type="button" data-prompt="Tóm tắt những nội dung chính trong tài liệu.">Tóm tắt tài liệu</button><button class="sec" type="button" data-prompt="Những thông tin quan trọng nhất tôi cần biết là gì?">Thông tin quan trọng</button><button class="sec" type="button" data-prompt="Liệt kê các bước hoặc quy trình được nêu trong tài liệu.">Các bước / quy trình</button></div><div id="log"></div>
+<div class="row"><input type="text" id="q" placeholder="Nhập câu hỏi của bạn..." autocomplete="off"><button id="send">Gửi</button></div>
 <p class="hint" id="st"></p></div>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
-var $=function(i){return document.getElementById(i)},hist=[],isAdmin=false;
-async function api(url,options){var r=await fetch(url,Object.assign({credentials:"same-origin"},options||{}));var d=await r.json().catch(function(){return {}});if(!r.ok)throw new Error(d.error||"Yêu cầu không thành công");return d}
+var $=function(i){return document.getElementById(i)},hist=[],isAdmin=false;\ntry{hist=JSON.parse(localStorage.getItem("chatbox-history-v1")||"[]").slice(-20)}catch(e){hist=[]}\nfunction saveHistory(){try{localStorage.setItem("chatbox-history-v1",JSON.stringify(hist.slice(-20)))}catch(e){}}\nasync function api(url,options){var r=await fetch(url,Object.assign({credentials:"same-origin"},options||{}));var d=await r.json().catch(function(){return {}});if(!r.ok)throw new Error(d.error||"Yêu cầu không thành công");return d}
 function addMsg(cls,t){var d=document.createElement("div");d.className="m "+cls;d.textContent=t;$("log").appendChild(d);$("log").scrollTop=1e9;return d}
 function showAdmin(value){isAdmin=value;$("adminLogin").classList.toggle("hidden",value);$("adminPanel").classList.toggle("hidden",!value)}
 async function refreshDocs(){try{var d=await api("/api/docs");$("kbStatus").textContent=d.documents.length+" tài liệu trong kho dùng chung.";var h="";d.documents.forEach(function(x){h+='<div class="doc"><span>📄 '+escapeHtml(x.name)+' <span class="docmeta">('+Math.round(x.chars/1000)+'k ký tự)</span></span>'+(isAdmin?'<button class="sec" data-id="'+x.id+'">Xóa</button>':'')+'</div>'});$("docs").innerHTML=h;
@@ -78,8 +78,8 @@ async function addDocument(name,text){await api("/api/admin/docs",{method:"POST"
 $("addText").onclick=async function(){var text=$("paste").value.trim(),name=$("pn").value.trim()||"Văn bản dán";if(text.length<20){$("adminStatus").textContent="Văn bản cần tối thiểu 20 ký tự.";return}try{$("adminStatus").textContent="Đang lưu...";await addDocument(name,text);$("paste").value="";$("pn").value="";$("adminStatus").textContent="Đã thêm tài liệu."}catch(e){$("adminStatus").textContent=e.message}};
 if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"}
 $("f").onchange=async function(){for(var file of $("f").files){try{$("adminStatus").textContent="Đang đọc "+file.name+"...";var text="";if(file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf")){if(!window.pdfjsLib)throw new Error("Không tải được PDF.js");var pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;for(var i=1;i<=pdf.numPages;i++){var page=await pdf.getPage(i),content=await page.getTextContent();text+=content.items.map(function(x){return x.str}).join(" ")+"\n"}}else{text=await file.text()}if(text.trim().length<20)throw new Error("Không trích xuất được nội dung chữ (PDF scan cần OCR).");await addDocument(file.name,text);$("adminStatus").textContent="Đã nạp "+file.name}catch(e){$("adminStatus").textContent=file.name+": "+e.message}}$("f").value=""};
-async function send(){var q=$("q").value.trim();if(!q)return;$("q").value="";addMsg("u",q);hist.push({r:"Người dùng",t:q});$("send").disabled=true;$("st").textContent="Đang tìm trong tài liệu và tạo câu trả lời...";try{var d=await api("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q,history:hist.slice(-6)})});addMsg("b",d.answer);hist.push({r:"Trợ lý",t:d.answer})}catch(e){addMsg("b","Lỗi: "+e.message)}finally{$("send").disabled=false;$("st").textContent=""}}
+async function send(){var q=$("q").value.trim();if(!q)return;$("q").value="";addMsg("u",q);hist.push({r:"Người dùng",t:q});saveHistory();$("send").disabled=true;$("st").textContent="Đang tìm trong tài liệu và tạo câu trả lời...";try{var d=await api("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q,history:hist.slice(-6)})});addMsg("b",d.answer,d.sources||[]);hist.push({r:"Trợ lý",t:d.answer,sources:d.sources||[]});saveHistory()}catch(e){addMsg("b","Lỗi: "+e.message)}finally{$("send").disabled=false;$("st").textContent=""}}\n$("clearChat").onclick=function(){if(!confirm("Xóa lịch sử trò chuyện được lưu trên trình duyệt này?"))return;hist=[];saveHistory();$("log").innerHTML=""};\ndocument.querySelectorAll("[data-prompt]").forEach(function(b){b.onclick=function(){$("q").value=b.dataset.prompt;$("q").focus()}});
 $("send").onclick=send;$("q").addEventListener("keydown",function(e){if(e.key==="Enter")send()});
-(async function(){await Promise.all([checkStatus(),refreshDocs()]);try{var d=await api("/api/admin/me");if(d.authenticated){showAdmin(true);await refreshDocs()}}catch{}})();
+(async function(){renderHistory();await Promise.all([checkStatus(),refreshDocs()]);try{var d=await api("/api/admin/me");if(d.authenticated){showAdmin(true);await refreshDocs()}}catch{}})();
 </script>
 </body></html>
